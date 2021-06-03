@@ -1,0 +1,106 @@
+---
+
+ -  name: create VPC in Aws
+    ec2_vpc_net:
+      name: "{{ vpc_name }}"
+      cidr_block: "{{ vpc_cidr }}"
+      state: present
+      region: "{{ region }}"
+      aws_access_key: "{{ aws_access_key }}"
+      aws_secret_key: "{{ aws_secret_key }}"
+    register: vpc_out
+
+ -  name: store VPC ID in variable
+    set_fact:
+       vpc_id: "{{ vpc_out.vpc.id }}"
+       
+ 
+ -  name: add subnet in VPC
+    ec2_vpc_subnet:
+       cidr: "{{ subnet_cidr }}"
+       vpc_id: "{{ vpc_id }}"
+       region: "{{ region }}"
+       state: present
+       map_public: yes
+       tags:
+         Name: "{{ subnet_name }}"
+       aws_access_key: "{{ aws_access_key }}"
+       aws_secret_key: "{{ aws_secret_key }}"
+    register: subnet
+
+ -  name: create Internet Gateway (IGW)
+    ec2_vpc_igw:
+       vpc_id: "{{ vpc_id }}"
+       state: present
+       region: "{{ region }}"
+       tags:
+         Name: "{{ igw_name }}"
+       aws_access_key: "{{ aws_access_key }}"
+       aws_secret_key: "{{ aws_secret_key }}"
+    register: igw
+
+ -  name: create Route Table for igw
+    ec2_vpc_route_table:
+       vpc_id: "{{ vpc_id }}"
+       region: "{{ region }}"
+       subnets:
+          - "{{ subnet.subnet.id }}"
+       routes:
+          - dest: 0.0.0.0/0
+            gateway_id: "{{ igw.gateway_id }}"
+       tags:
+         Name: "{{ route_name }}"
+       aws_access_key: "{{ aws_access_key }}"
+       aws_secret_key: "{{ aws_secret_key }}"
+
+ -  name: Creating Security Group
+    ec2_group:
+       name: "{{ security_group }}"
+       description: allowing ssh and ssh port
+       vpc_id: "{{ vpc_id }}"
+       region: "{{ region }}"
+       rules:
+         - proto: tcp
+           ports:
+           - 80
+           cidr_ip: 0.0.0.0/0
+         - proto: tcp
+           ports:
+           - 22
+           cidr_id: 0.0.0.0/0
+       aws_access_key: "{{ aws_access_key }}"
+       aws_secret_key: "{{ aws_secret_key }}"
+    register: sg_group
+  
+ -  name: create key pair and get generated private key
+    ec2_key:
+       name: "{{ key_name }}"
+       region: "{{ region }}"
+       aws_access_key: "{{ aws_access_key }}"
+       aws_secret_key: "{{ aws_secret_key }}"
+    register: keypair
+    tags:
+      - key_pair
+ 
+ -  name: copy key pair to local vm
+    copy:
+     content: "{{ keypair.key.private_key }}"
+     dest: "{{ key_directory }}/ansible.pem"
+    when: keypair.changed == true
+    tags:
+      - key_pair
+ 
+ -  name: Create EC2 Instance
+    ec2:
+     region: "{{ region }}"
+     image: "{{ ec2_image }}"
+     instance_type: t2.micro
+     group_id: "{{ sg_group.group_id }}"
+     vpc_subnet_id: "{{ subnet.subnet.id }}"
+     key_name: "{{ keypair.key.name }}"
+     count: "{{ ec2_count }}"
+     wait: yes
+     instance_tags:
+          Name: "{{ instance_tag }}"
+     aws_access_key: "{{ aws_access_key }}"
+     aws_secret_key: "{{ aws_secret_key }}"         

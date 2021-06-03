@@ -1,0 +1,37 @@
+---
+# vars file for aws-roles
+
+#Aws Access Key
+aws_access_key: ""
+aws_secret_key: ""
+region: "ap-south-1"
+
+# VPC Vars
+vpc_name: "Datacenter-VPC"
+vpc_cidr: 10.0.0.0/16
+
+# Subnet Vars
+subnet_name: "DC-Subnet"
+subnet_cidr: 10.0.0.1/24
+
+# IGW 
+igw_name: "DC-IGW"
+
+# Route Table
+route_name: "DC-Route"
+
+
+# Security Group
+security_group: "DC-Web-SG"
+
+
+# Key-Pair Vars
+key_name: "DC-Key"
+key_directory: "/opt/"
+
+
+
+# Ec2 Vars
+instance_tag: DC-Server
+ec2_image: "ami-010aff33ed5991201"
+ec2_count: 2
